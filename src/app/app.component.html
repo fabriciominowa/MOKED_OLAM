@@ -1,0 +1,41 @@
+<!-- NOTIFICAÇÃO TOAST DO SISTEMA OLAM -->
+@if (state.toastMessage()) {
+  <div class="app-toast">
+    <span class="toast-indicator"></span>
+    <span>{{ state.toastMessage() }}</span>
+  </div>
+}
+
+@if (!state.isLoggedIn()) {
+  <router-outlet></router-outlet>
+} @else {
+  <div class="app-layout">
+    <!-- BACKDROP ESCURO QUANDO O MENU HAMBÚRGUER ESTÁ ABERTO NO MOBILE -->
+    @if (mobileMenuOpen()) {
+      <div
+        class="mobile-sidebar-backdrop"
+        (click)="mobileMenuOpen.set(false)"
+      ></div>
+    }
+
+    <app-sidebar
+      [mobileOpen]="mobileMenuOpen()"
+      (closeMenu)="mobileMenuOpen.set(false)"
+    ></app-sidebar>
+
+    <div class="app-main-area">
+      <app-topbar
+        (toggleMobileMenu)="mobileMenuOpen.set(!mobileMenuOpen())"
+        (toggleWhatsapp)="showWhatsappDrawer.set(!showWhatsappDrawer())"
+      ></app-topbar>
+
+      <main class="app-content">
+        <router-outlet></router-outlet>
+      </main>
+    </div>
+
+    @if (showWhatsappDrawer()) {
+      <app-whatsapp-drawer (close)="showWhatsappDrawer.set(false)"></app-whatsapp-drawer>
+    }
+  </div>
+}

@@ -1,0 +1,5 @@
+/* Component-level overrides (global styles live in src/styles.scss) */
+:host {
+  display: block;
+  min-height: 100vh;
+}
