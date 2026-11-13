@@ -3,11 +3,12 @@ import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { HealthStatus } from '../../models/olam.models';
 import { OlamStateService } from '../../services/olam-state.service';
+import { Moked3dCanvasComponent } from '../../shared/components/moked-3d-canvas.component';
 
 @Component({
   selector: 'app-cliente-portal',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, Moked3dCanvasComponent],
   template: `
     <div class="client-app-shell">
       <!-- BARRA DE DEMONSTRAÇÃO DE ESCOPO RESTRITO (CLIENTES A, B e C) -->
@@ -35,6 +36,11 @@ import { OlamStateService } from '../../services/olam-state.service';
         <section class="client-screen-container">
           <!-- TERMÔMETRO INTERATIVO DE SAÚDE DO CONTRATO (RH, RT, RA) -->
           <div class="health-hero-dark">
+            <app-moked-3d-canvas
+              mode="hero"
+              [status]="activeGaugeStatus()"
+              class="hero-3d-backdrop"
+            />
             <div class="hh-left">
               <div class="hh-eyebrow-row">
                 <span class="contract-eyebrow">

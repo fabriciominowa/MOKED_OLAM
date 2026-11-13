@@ -1,9 +1,10 @@
 import { CommonModule } from '@angular/common';
 import { Component, OnInit, computed, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { UserRole } from '../../models/olam.models';
 import { OlamStateService } from '../../services/olam-state.service';
+import { Moked3dCanvasComponent } from '../../shared/components/moked-3d-canvas.component';
 
 interface ProfileUserOption {
   id: string;
@@ -17,9 +18,10 @@ interface ProfileUserOption {
 @Component({
   selector: 'app-login',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, RouterLink, Moked3dCanvasComponent],
   template: `
     <div class="auth-page">
+      <app-moked-3d-canvas mode="auth" class="auth-3d-backdrop" />
       <div class="auth-container">
         <!-- COLUNA ESQUERDA: SELEÇÃO DE PERFIL + USUÁRIOS (E PERSONAGEM NOS DEMAIS PERFIS) -->
         <div class="auth-brand-panel">
@@ -121,7 +123,12 @@ interface ProfileUserOption {
               <span class="abh-divider">·</span>
               <span>OLAM / Entrar</span>
             </div>
-            <span class="abh-role-pill">{{ selectedRoleMeta().shortLabel }}</span>
+            <div class="flex items-center gap-2">
+              <a routerLink="/home" class="text-xs font-bold text-moked-crimson hover:underline no-underline">
+                ← Home
+              </a>
+              <span class="abh-role-pill">{{ selectedRoleMeta().shortLabel }}</span>
+            </div>
           </div>
 
           <form class="auth-box-body" (ngSubmit)="submit()">
@@ -210,6 +217,7 @@ interface ProfileUserOption {
 export class LoginComponent implements OnInit {
   readonly state = inject(OlamStateService);
   private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
 
   email = 'cliente.b@contratob.com.br';
   password = '••••••••';
@@ -342,7 +350,9 @@ export class LoginComponent implements OnInit {
 
   ngOnInit(): void {
     this.state.isLoggedIn.set(false);
-    const active = this.state.activeRole();
+    const paramRole = this.route.snapshot.queryParamMap.get('role') as UserRole | null;
+    const isValidRole = paramRole && this.state.roles.some((r) => r.id === paramRole);
+    const active = isValidRole ? paramRole : this.state.activeRole();
     this.selectedRole = active;
     this.onRoleChange(active);
   }

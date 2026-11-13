@@ -1,16 +1,15 @@
-<!-- NOTIFICAÇÃO TOAST DO SISTEMA OLAM -->
+<!-- NOTIFICAÇÃO TOAST DO SISTEMA MOKED RESOLVE / OLAM -->
 @if (state.toastMessage()) {
-  <div class="app-toast">
+  <div class="app-toast" role="status" aria-live="polite">
     <span class="toast-indicator"></span>
     <span>{{ state.toastMessage() }}</span>
   </div>
 }
 
-@if (!state.isLoggedIn()) {
+@if (!state.isLoggedIn() || isPublicShell()) {
   <router-outlet></router-outlet>
 } @else {
   <div class="app-layout">
-    <!-- BACKDROP ESCURO QUANDO O MENU HAMBÚRGUER ESTÁ ABERTO NO MOBILE -->
     @if (mobileMenuOpen()) {
       <div
         class="mobile-sidebar-backdrop"

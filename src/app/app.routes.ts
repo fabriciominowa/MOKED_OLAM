@@ -3,13 +3,27 @@ import { AltaGestaoBiComponent } from './features/alta-gestao/alta-gestao-bi.com
 import { LoginComponent } from './features/auth/login.component';
 import { ClientePortalComponent } from './features/cliente/cliente-portal.component';
 import { ConsultorWorkspaceComponent } from './features/consultor/consultor-workspace.component';
+import { HomeComponent } from './features/home/home.component';
 import { LiderPostoComponent } from './features/lider/lider-posto.component';
 import { CentralMonitoramentoComponent } from './features/monitoramento/central-monitoramento.component';
+import { ResolveAcompanharComponent } from './features/resolve/resolve-acompanhar.component';
+import { ResolveHomeComponent } from './features/resolve/resolve-home.component';
+import {
+  ResolveMuralComponent,
+  ResolveRankingComponent,
+} from './features/resolve/resolve-mural-ranking.component';
+import { ResolveRegistrarComponent } from './features/resolve/resolve-registrar.component';
 import { TerceirizadosPortalComponent } from './features/terceirizados/terceirizados-portal.component';
 import { TreinamentoPortalComponent } from './features/treinamento/treinamento-portal.component';
 
 export const routes: Routes = [
-  { path: '', pathMatch: 'full', redirectTo: 'cliente' },
+  { path: '', pathMatch: 'full', redirectTo: 'home' },
+  { path: 'home', component: HomeComponent },
+  { path: 'resolve', component: ResolveHomeComponent },
+  { path: 'registrar', component: ResolveRegistrarComponent },
+  { path: 'acompanhar', component: ResolveAcompanharComponent },
+  { path: 'mural', component: ResolveMuralComponent },
+  { path: 'ranking', component: ResolveRankingComponent },
   { path: 'login', component: LoginComponent },
   { path: 'cliente', component: ClientePortalComponent },
   { path: 'consultor', component: ConsultorWorkspaceComponent },
@@ -29,5 +43,5 @@ export const routes: Routes = [
   { path: 'monitoramento', component: CentralMonitoramentoComponent },
   { path: 'treinamento', component: TreinamentoPortalComponent },
   { path: 'alta-gestao', component: AltaGestaoBiComponent },
-  { path: '**', redirectTo: 'cliente' },
+  { path: '**', redirectTo: 'home' },
 ];

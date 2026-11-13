@@ -1,4 +1,14 @@
-import { Injectable, computed, signal } from '@angular/core';
+import { Injectable, computed, effect, signal } from '@angular/core';
+import { MokedDatabase } from '../core/database/moked.db';
+import {
+  MOKED_CLIENT_ACCOUNTS,
+  MOKED_DIVISIONS,
+  MOKED_ROLES,
+  MOKED_USE_CASES,
+  MuralPraiseRecord,
+  RankingMemberRecord,
+  TicketChatMessage,
+} from '../core/database/moked.seed';
 import {
   AuditLogEntry,
   BudgetProposal,
@@ -20,539 +30,30 @@ import {
   providedIn: 'root',
 })
 export class OlamStateService {
-  readonly roles: RoleMeta[] = [
-    {
-      id: 'cliente',
-      code: '01',
-      label: '01 | Cliente',
-      shortLabel: 'Cliente',
-      subtitle: 'Situação do contrato, evidências e decisões pendentes.',
-      defaultEmail: 'cliente@contratob.com.br',
-      scopeDescription: 'Somente seus contratos e registros liberados pelo consultor.',
-    },
-    {
-      id: 'consultor',
-      code: '02',
-      label: '02 | Consultor',
-      shortLabel: 'Consultor',
-      subtitle: 'Visitas de campo, registros, validação e liberação ao cliente.',
-      defaultEmail: 'consultor@moked.com.br',
-      scopeDescription: 'Áreas, divisões e clientes sob sua responsabilidade.',
-    },
-    {
-      id: 'lider',
-      code: '03',
-      label: '03 | Líder de Posto',
-      shortLabel: 'Líder',
-      subtitle: 'Rotina do posto, registros do turno e ocorrências.',
-      defaultEmail: 'lider.posto@seguranca.com.br',
-      scopeDescription: 'Postos e turnos autorizados.',
-    },
-    {
-      id: 'terceirizados',
-      code: '04',
-      label: '04 | Terceirizados',
-      shortLabel: 'Terceirizados',
-      subtitle: '04A Técnico · 04B Supervisor de Segurança · 04C SLA e Multas.',
-      defaultEmail: 'tecnico@terceirizada.com.br',
-      scopeDescription: 'Ordens de serviço, checklists técnicos, supervisão de posto e SLA.',
-    },
-    {
-      id: 'monitoramento',
-      code: '05',
-      label: '05 | Central de Monitoramento',
-      shortLabel: 'Monitoramento',
-      subtitle: 'Registro de ocorrências, falhas técnicas e providências.',
-      defaultEmail: 'central@moked.com.br',
-      scopeDescription: 'Detecção de eventos CFTV/alarme e acionamento do consultor/gestão.',
-    },
-    {
-      id: 'treinamento',
-      code: '06',
-      label: '06 | Treinamento',
-      shortLabel: 'Treinamento',
-      subtitle: 'Rafael e equipe: presença, pontos, reposições e saldo de FV.',
-      defaultEmail: 'rafael.treinamento@moked.com.br',
-      scopeDescription: 'Turmas, convocados, controle de presença/reposição e FV por contrato.',
-    },
-    {
-      id: 'alta-gestao',
-      code: '07',
-      label: '07 | Alta Gestão',
-      shortLabel: 'Alta Gestão',
-      subtitle: 'Presidência e gestores seniores: BI, Mapa de Calor, TV e X-Ray.',
-      defaultEmail: 'eric.diretoria@moked.com.br',
-      scopeDescription: 'Visão integral da operação (20 contratos), alertas graves e alçadas.',
-    },
-  ];
+  private readonly initialDb = MokedDatabase.load();
 
-  readonly divisions: DivisionMeta[] = [
-    {
-      code: 'MOKIMP',
-      name: 'Implantação',
-      description: 'Etapas, cronograma e entrega da implantação operacional.',
-      specificFields: [
-        {
-          key: 'etapaImplantacao',
-          label: 'Etapa e entrega da implantação',
-          placeholder: 'Ex.: Entrega da fase 2 de controle perimetral concluída',
-        },
-        {
-          key: 'pendenciaImplantacao',
-          label: 'Pendências de implantação',
-          placeholder: 'Ex.: Homologação final dos leitores biométricos',
-        },
-      ],
-    },
-    {
-      code: 'MOKPAT',
-      name: 'Segurança Patrimonial',
-      description: 'Postos, controle de acesso, efetivo e rondas patrimoniais.',
-      specificFields: [
-        {
-          key: 'revisaoAcesso',
-          label: 'Revisão do acesso e orientação da equipe',
-          placeholder: 'Ex.: Revisão do protocolo de portaria principal e docas',
-        },
-        {
-          key: 'efetivoPosto',
-          label: 'Conferência de efetivo e posto',
-          placeholder: 'Ex.: Efetivo completo (4/4) no turno diurno',
-        },
-      ],
-    },
-    {
-      code: 'MOKVIP',
-      name: 'Proteção Executiva / VIP',
-      description: 'Atendimento dedicado, escolta e protocolos especiais.',
-      specificFields: [
-        {
-          key: 'protocoloVip',
-          label: 'Protocolo e itinerário revisado',
-          placeholder: 'Ex.: Checagem avançada de rota e equipe de apoio',
-        },
-      ],
-    },
-    {
-      code: 'MOKTEC',
-      name: 'Tecnologia e Sistemas',
-      description: 'CFTV, controle de acesso eletrônico, falha e restabelecimento.',
-      specificFields: [
-        {
-          key: 'equipamentoAvaliado',
-          label: 'Equipamento avaliado',
-          placeholder: 'Ex.: Câmera CFTV 03 / Leitor de acesso principal',
-        },
-        {
-          key: 'statusRestabelecimento',
-          label: 'Falha e restabelecimento',
-          placeholder: 'Ex.: Conector BNC e fonte substituídos, sinal online',
-        },
-      ],
-    },
-    {
-      code: 'MOKLOG',
-      name: 'Segurança Logística',
-      description: 'Rotina de pátio, docas, conferência e desvios logísticos.',
-      specificFields: [
-        {
-          key: 'rotinaLogistica',
-          label: 'Rotina e desvios logísticos',
-          placeholder: 'Ex.: Fluxo de docas auditado; sem desvios de lacre',
-        },
-      ],
-    },
-    {
-      code: 'MOKRES',
-      name: 'Segurança Residencial',
-      description: 'Condomínios e residências de alto padrão.',
-      specificFields: [
-        {
-          key: 'auditoriaPortaria',
-          label: 'Auditoria de portaria e clausura',
-          placeholder: 'Ex.: Teste de botão de pânico e eclusa de veículos OK',
-        },
-      ],
-    },
-    {
-      code: 'P950',
-      name: 'Projeto P950',
-      description: 'Operações especiais e protocolos dedicados P950.',
-      specificFields: [
-        {
-          key: 'conformidadeP950',
-          label: 'Indicador de conformidade P950',
-          placeholder: 'Ex.: 100% aderente ao checklist P950',
-        },
-      ],
-    },
-    {
-      code: 'Treinamento',
-      name: 'Treinamento em Campo',
-      description: 'Capacitação operacional, reciclagens e simulações no posto.',
-      specificFields: [
-        {
-          key: 'temaCapacitacao',
-          label: 'Tema e instrutor',
-          placeholder: 'Ex.: Controle de acesso e abordagem — 9 participantes',
-        },
-      ],
-    },
-  ];
+  readonly roles: RoleMeta[] = MOKED_ROLES;
+  readonly divisions: DivisionMeta[] = MOKED_DIVISIONS;
+  readonly useCases: UseCaseScenario[] = MOKED_USE_CASES;
 
-  readonly useCases: UseCaseScenario[] = [
-    {
-      id: 'caso-01',
-      code: 'Caso 01',
-      title: 'Visita técnica',
-      slidePage: 74,
-      profilesInvolved: ['04A Técnico', '02 Consultor', '03 Líder', '01 Cliente'],
-      steps: [
-        {
-          stepNumber: 1,
-          actor: 'Técnico terceirizado',
-          role: 'terceirizados',
-          title: 'Registra entrada',
-          description: 'Seleciona o Contrato B na portaria principal e registra entrada às 09h12.',
-        },
-        {
-          stepNumber: 2,
-          actor: 'Técnico terceirizado',
-          role: 'terceirizados',
-          title: 'Executa o serviço',
-          description: 'Realiza a substituição do conector e testa o sinal da Câmera CFTV 03.',
-        },
-        {
-          stepNumber: 3,
-          actor: 'Técnico terceirizado',
-          role: 'terceirizados',
-          title: 'Anexa evidências e registra saída',
-          description: 'Preenche o checklist técnico, anexa foto da câmera e registra saída.',
-        },
-        {
-          stepNumber: 4,
-          actor: 'Consultor',
-          role: 'consultor',
-          title: 'Consultor valida',
-          description: 'Confere o checklist e a foto anexada e valida a conclusão do reparo.',
-        },
-        {
-          stepNumber: 5,
-          actor: 'Líder e Cliente',
-          role: 'cliente',
-          title: 'Líder consulta · Cliente vê resumo liberado',
-          description: 'O Líder acompanha no posto e o Cliente vê o resumo e a foto na linha do tempo.',
-        },
-      ],
-    },
-    {
-      id: 'caso-02',
-      code: 'Caso 02',
-      title: 'Visita do consultor',
-      slidePage: 75,
-      profilesInvolved: ['02 Consultor', '01 Cliente', '07 Alta Gestão'],
-      steps: [
-        {
-          stepNumber: 1,
-          actor: 'Consultor',
-          role: 'consultor',
-          title: 'Registra a entrada',
-          description: 'Escolhe a divisão (ex.: MOKPAT) e o contrato; data, hora e autor são automáticos.',
-        },
-        {
-          stepNumber: 2,
-          actor: 'Consultor',
-          role: 'consultor',
-          title: 'Preenche o checklist e anexa fotos',
-          description: 'Verifica acesso, equipe e equipamentos e anexa foto da visita.',
-        },
-        {
-          stepNumber: 3,
-          actor: 'Consultor',
-          role: 'consultor',
-          title: 'Registra a melhoria e a saída',
-          description: 'Registra ao menos uma melhoria obrigatória e conclui a saída (calcula duração).',
-        },
-        {
-          stepNumber: 4,
-          actor: 'Consultor',
-          role: 'consultor',
-          title: 'Define responsável e prazo se houver pendência',
-          description: 'Caso identifique falha (ex.: leitor de acesso), abre ação vinculada ao contrato.',
-        },
-        {
-          stepNumber: 5,
-          actor: 'Cliente e Gestão',
-          role: 'alta-gestao',
-          title: 'Cliente vê resumo liberado · Gestão acompanha no BI',
-          description: 'Alimenta cobertura da carteira (16/20) e duração mediana (42 min) no BI.',
-        },
-      ],
-    },
-    {
-      id: 'caso-03',
-      code: 'Caso 03',
-      title: 'Pendência fora do prazo',
-      slidePage: 76,
-      profilesInvolved: ['02 Consultor', '07 Alta Gestão', '01 Cliente'],
-      steps: [
-        {
-          stepNumber: 1,
-          actor: 'Consultor',
-          role: 'consultor',
-          title: 'Consultor acompanha responsável e prazo',
-          description: 'Monitora os chamados abertos da carteira (ex.: CH-1247, CH-1248).',
-        },
-        {
-          stepNumber: 2,
-          actor: 'Sistema Olam',
-          role: 'monitoramento',
-          title: 'Prazo vence',
-          description: 'O chamado ultrapassa a data limite sem baixa validada.',
-        },
-        {
-          stepNumber: 3,
-          actor: 'Alta Gestão e Consultor Geral',
-          role: 'alta-gestao',
-          title: 'Consultor geral e gestão recebem alerta',
-          description: 'Sinaliza no Mapa de Calor e no card de Ações Vencidas da Alta Gestão.',
-        },
-        {
-          stepNumber: 4,
-          actor: 'Consultor',
-          role: 'consultor',
-          title: 'Consultor valida o fechamento',
-          description: 'Após execução e evidência, o consultor valida o encerramento.',
-        },
-        {
-          stepNumber: 5,
-          actor: 'Cliente',
-          role: 'cliente',
-          title: 'Cliente vê a atualização liberada',
-          description: 'O status atualizado é publicado no histórico do contrato do cliente.',
-        },
-      ],
-    },
-    {
-      id: 'caso-04',
-      code: 'Caso 04',
-      title: 'Presença e reposição',
-      slidePage: 77,
-      profilesInvolved: ['06 Treinamento', '01 Cliente', '07 Alta Gestão'],
-      steps: [
-        {
-          stepNumber: 1,
-          actor: 'Equipe de Treinamento (Rafael)',
-          role: 'treinamento',
-          title: 'Equipe registra presença e ausência',
-          description: 'Abre a turma do contrato e registra presentes (Ana, Carla) e ausente (Bruno).',
-        },
-        {
-          stepNumber: 2,
-          actor: 'Sistema Olam',
-          role: 'treinamento',
-          title: 'Presença soma pontos',
-          description: 'Colaboradores presentes acumulam pontos automaticamente no cadastro.',
-        },
-        {
-          stepNumber: 3,
-          actor: 'Equipe de Treinamento',
-          role: 'treinamento',
-          title: 'Equipe acompanha reposições',
-          description: 'Gera pendência de reposição para quem faltou (ex.: Bruno Lima).',
-        },
-        {
-          stepNumber: 4,
-          actor: 'Cliente',
-          role: 'cliente',
-          title: 'Cliente consulta cobertura',
-          description: 'Visualiza 90% de equipe treinada, fotos da turma e lista de presença.',
-        },
-        {
-          stepNumber: 5,
-          actor: 'Alta Gestão',
-          role: 'alta-gestao',
-          title: 'Gestão acompanha cobertura e FV',
-          description: 'Painel de BI exibe turmas realizadas (8/10), presença (90%) e saldo de FV.',
-        },
-      ],
-    },
-    {
-      id: 'caso-05',
-      code: 'Caso 05',
-      title: 'Orçamento para aprovação',
-      slidePage: 78,
-      profilesInvolved: ['02 Consultor', '07 Alta Gestão', '01 Cliente'],
-      steps: [
-        {
-          stepNumber: 1,
-          actor: 'Consultor',
-          role: 'consultor',
-          title: 'Consultor envia à gestão',
-          description: 'Submete proposta de reforço no horário de pico (R$ 2.000/mês) para alçada interna.',
-        },
-        {
-          stepNumber: 2,
-          actor: 'Consultor',
-          role: 'consultor',
-          title: 'Consultor libera a proposta ao cliente',
-          description: 'Após validação, disponibiliza justificativa, valor e impacto para o cliente.',
-        },
-        {
-          stepNumber: 3,
-          actor: 'Cliente',
-          role: 'cliente',
-          title: 'Cliente aprova ou recusa',
-          description: 'Cliente analisa o motivo do alerta, comenta e registra sua decisão.',
-        },
-        {
-          stepNumber: 4,
-          actor: 'Consultor',
-          role: 'consultor',
-          title: 'Consultor acompanha a execução',
-          description: 'Decisão fica gravada no histórico auditável e inicia a implantação do reforço.',
-        },
-      ],
-    },
-    {
-      id: 'caso-06',
-      code: 'Caso 06',
-      title: 'Ocorrência grave',
-      slidePage: 79,
-      profilesInvolved: ['03 Líder / 05 Central', '07 Alta Gestão', '02 Consultor', '01 Cliente'],
-      steps: [
-        {
-          stepNumber: 1,
-          actor: 'Líder ou Central',
-          role: 'lider',
-          title: 'Líder ou Central registra',
-          description: 'Registra tentativa de invasão ou ocorrência grave no posto com providência imediata.',
-        },
-        {
-          stepNumber: 2,
-          actor: 'Alta Gestão',
-          role: 'alta-gestao',
-          title: 'Gestão recebe alerta imediato',
-          description: 'Prioridade grave dispara notificação imediata para Presidência e Diretoria.',
-        },
-        {
-          stepNumber: 3,
-          actor: 'Consultor',
-          role: 'consultor',
-          title: 'Consultor coordena o atendimento',
-          description: 'Assume a coordenação em campo, reúne evidências e acompanha as ações.',
-        },
-        {
-          stepNumber: 4,
-          actor: 'Cliente',
-          role: 'cliente',
-          title: 'Cliente vê o comunicado liberado',
-          description: 'Recebe o comunicado oficial validado pelo consultor no aplicativo.',
-        },
-      ],
-    },
-    {
-      id: 'caso-07',
-      code: 'Caso 07',
-      title: 'Câmera fora do ar',
-      slidePage: 80,
-      profilesInvolved: ['05 Central', '02 Consultor', '04A Técnico', '01 Cliente'],
-      steps: [
-        {
-          stepNumber: 1,
-          actor: 'Central de Monitoramento',
-          role: 'monitoramento',
-          title: 'Central registra a falha',
-          description: 'Detecta Câmera CFTV 03 fora do ar às 08h42, anexa captura e vincula ao Contrato B.',
-        },
-        {
-          stepNumber: 2,
-          actor: 'Consultor',
-          role: 'consultor',
-          title: 'Consultor recebe o alerta',
-          description: 'Reúne relatos (Central + Líder), define Equipe Técnica como responsável e prazo Hoje 17h.',
-        },
-        {
-          stepNumber: 3,
-          actor: 'Técnico terceirizado',
-          role: 'terceirizados',
-          title: 'Técnico registra o reparo com evidência',
-          description: 'Substitui conector, testa imagem e anexa foto do reparo concluído.',
-        },
-        {
-          stepNumber: 4,
-          actor: 'Consultor',
-          role: 'consultor',
-          title: 'Consultor valida',
-          description: 'Confere a evidência às 16h30 e libera a atualização para o cliente.',
-        },
-        {
-          stepNumber: 5,
-          actor: 'Cliente',
-          role: 'cliente',
-          title: 'Cliente vê o status liberado',
-          description: 'Visualiza toda a linha do tempo (08h42 → 16h30) e a foto da câmera restabelecida.',
-        },
-      ],
-    },
-    {
-      id: 'caso-08',
-      code: 'Caso 08',
-      title: 'Falta no posto',
-      slidePage: 81,
-      profilesInvolved: ['03 Líder', '02 Consultor', '07 Alta Gestão'],
-      steps: [
-        {
-          stepNumber: 1,
-          actor: 'Líder de Posto',
-          role: 'lider',
-          title: 'Líder registra a falta',
-          description: 'No menu Meu Turno, seleciona Falta ou Atraso e identifica colaborador e horário.',
-        },
-        {
-          stepNumber: 2,
-          actor: 'Consultor',
-          role: 'consultor',
-          title: 'Consultor recebe alerta se a falta for crítica',
-          description: 'Faltas em postos críticos disparam aviso imediato ao consultor responsável.',
-        },
-        {
-          stepNumber: 3,
-          actor: 'Consultor',
-          role: 'consultor',
-          title: 'Consultor acompanha a cobertura',
-          description: 'Aciona reserva/substituição e acompanha horário de chegada no posto.',
-        },
-        {
-          stepNumber: 4,
-          actor: 'Alta Gestão',
-          role: 'alta-gestao',
-          title: 'Gestão acompanha conforme a prioridade',
-          description: 'Reflete nos indicadores de cobertura, substituições no mês e SLA.',
-        },
-      ],
-    },
-  ];
-
-  // Autenticação e navegação
-  readonly isLoggedIn = signal<boolean>(true);
-  readonly currentUserEmail = signal<string>('cliente.b@contratob.com.br');
-  readonly activeRole = signal<UserRole>('cliente');
-  readonly selectedContractId = signal<string>('CT-B');
-  readonly selectedDivision = signal<DivisionCode>('MOKPAT');
+  // Autenticação e navegação hidratadas da Base TypeScript
+  readonly isLoggedIn = signal<boolean>(this.initialDb.session.isLoggedIn);
+  readonly currentUserEmail = signal<string>(this.initialDb.session.currentUserEmail);
+  readonly activeRole = signal<UserRole>(this.initialDb.session.activeRole);
+  readonly selectedContractId = signal<string>(this.initialDb.session.selectedContractId);
+  readonly selectedDivision = signal<DivisionCode>(this.initialDb.session.selectedDivision);
   readonly toastMessage = signal<string | null>(null);
+  readonly dbLastSyncedAt = signal<string>(this.initialDb.updatedAt);
 
-  // Controle exclusivo dos 3 Clientes (Cliente A, Cliente B e Cliente C)
-  // Cada cliente enxerga APENAS o seu próprio contrato e APENAS a área do Cliente
-  readonly activeClientAccount = signal<'CLI-A' | 'CLI-B' | 'CLI-C'>('CLI-B');
+  readonly activeClientAccount = signal<'CLI-A' | 'CLI-B' | 'CLI-C'>(
+    this.initialDb.session.activeClientAccount
+  );
   readonly clientActiveTab = signal<'inicio' | 'meu-contrato' | 'treinamentos' | 'mais'>('inicio');
 
-  // Aba/Página ativa do Consultor ('minhas-areas' | 'area-detalhe' | 'nova-visita' | 'carteira' | 'ocorrencias' | 'orcamentos')
   readonly consultantActiveTab = signal<
     'minhas-areas' | 'area-detalhe' | 'nova-visita' | 'carteira' | 'ocorrencias' | 'orcamentos'
   >('minhas-areas');
 
-  // Aba/Página ativa do Líder de Posto (03 | Líder de Posto)
   readonly leaderActiveTab = signal<
     | 'meu-turno'
     | 'falta-atraso'
@@ -562,9 +63,8 @@ export class OlamStateService {
     | 'pendencias'
     | 'historico'
   >('meu-turno');
-  readonly leaderSelectedPost = signal<string>('Posto Exemplo');
+  readonly leaderSelectedPost = signal<string>(this.initialDb.session.leaderSelectedPost);
 
-  // Abas ativas dos demais perfis (controladas diretamente pela barra lateral)
   readonly thirdPartyActiveTab = signal<'ordens-servico' | 'supervisao-posto' | 'meu-sla'>(
     'ordens-servico'
   );
@@ -584,29 +84,7 @@ export class OlamStateService {
     | 'modo-tv'
   >('visao-executiva');
 
-  readonly clientAccounts = [
-    {
-      id: 'CLI-A' as const,
-      shortName: 'Cliente A',
-      fullName: 'Cliente A · Sede Paulista',
-      email: 'cliente.a@contratoa.com.br',
-      contractId: 'CT-A',
-    },
-    {
-      id: 'CLI-B' as const,
-      shortName: 'Cliente B',
-      fullName: 'Cliente B · Portaria Loja 24',
-      email: 'cliente.b@contratob.com.br',
-      contractId: 'CT-B',
-    },
-    {
-      id: 'CLI-C' as const,
-      shortName: 'Cliente C',
-      fullName: 'Cliente C · Centro Logístico',
-      email: 'cliente.c@contratoc.com.br',
-      contractId: 'CT-C',
-    },
-  ];
+  readonly clientAccounts = MOKED_CLIENT_ACCOUNTS;
 
   // Filtros globais do BI (Alta Gestão)
   readonly biPeriodFilter = signal<'Semana' | 'Mês' | 'Trimestre'>('Semana');
@@ -614,787 +92,87 @@ export class OlamStateService {
   readonly biManagerFilter = signal<'Todos' | 'Gestor A' | 'Gestor B' | 'Gestor C' | 'Gestor D'>('Todos');
   readonly biContractFilter = signal<string>('Todos');
 
-  // Carteira de 20 contratos (14 em dia, 4 em atenção, 2 críticos — conforme página 67)
-  readonly contracts = signal<Contract[]>([
-    {
-      id: 'CT-A',
-      code: 'Contrato 001',
-      name: 'Contrato A',
-      unit: 'Sede Corporativa Paulista',
-      address: 'Av. Paulista, 1400 - Bela Vista, SP',
-      division: 'MOKPAT',
-      manager: 'Gestor A',
-      consultant: 'Carlos Mendes',
-      health: {
-        overall: 'em-dia',
-        rh: 'em-dia',
-        rt: 'em-dia',
-        ra: 'em-dia',
-        rhSummary: 'Equipe completa · 100% treinada',
-        rtSummary: '16 câmeras e controle de acesso 100% operacionais',
-        raSummary: 'Pagamentos e documentação em dia',
-      },
-      gauges: { improvementPlan: 92, plannedVisits: 100, trainedTeam: 95 },
-      teamMetrics: {
-        replacementsMonth: 1,
-        dismissalsMonth: 1,
-        avgHeadcount: 25,
-        turnoverPercent: 4,
-        trainingsCompleted: 3,
-        participationsRecorded: 24,
-      },
-      fv: { planned: 120, used: 110, balance: 10 },
-      plannedVisitsMonth: 4,
-      completedVisitsMonth: 4,
-      daysSinceLastVisit: 2,
-      overdueActionsCount: 2,
-      criticalOverdueCount: 0,
-      coordinates: { x: 34, y: 28, zone: 'Centro-Oeste SP' },
-    },
-    {
-      id: 'CT-B',
-      code: 'Contrato 002',
-      name: 'Contrato B',
-      unit: 'Portaria Principal · Loja 24',
-      address: 'Rua Olimpíadas, 205 - Vila Olímpia, SP',
-      division: 'MOKPAT',
-      manager: 'Gestor A',
-      consultant: 'Carlos Mendes',
-      health: {
-        overall: 'atencao',
-        rh: 'em-dia',
-        rt: 'atencao',
-        ra: 'em-dia',
-        rhSummary: 'Equipe completa · Turnover 10% (2 ÷ 20)',
-        rtSummary: 'Câmera CFTV 03 fora do ar · Em manutenção técnica',
-        raSummary: 'Documentação e faturamento atualizados',
-        alertBanner: 'CÂMERA CFTV 03 FORA DO AR',
-        alertActionHint: 'ABRA RT PARA VER A OCORRÊNCIA E AS FOTOS.',
-      },
-      gauges: { improvementPlan: 60, plannedVisits: 80, trainedTeam: 90 },
-      teamMetrics: {
-        replacementsMonth: 3,
-        dismissalsMonth: 2,
-        avgHeadcount: 20,
-        turnoverPercent: 10,
-        trainingsCompleted: 2,
-        participationsRecorded: 18,
-      },
-      fv: { planned: 100, used: 85, balance: 15 },
-      plannedVisitsMonth: 5,
-      completedVisitsMonth: 4,
-      daysSinceLastVisit: 1,
-      overdueActionsCount: 1,
-      criticalOverdueCount: 0,
-      coordinates: { x: 56, y: 24, zone: 'Zona Sul SP' },
-    },
-    {
-      id: 'CT-C',
-      code: 'Contrato 003',
-      name: 'Contrato C',
-      unit: 'Centro Logístico Anhanguera',
-      address: 'Rod. Anhanguera, Km 26 - Perus, SP',
-      division: 'MOKIMP',
-      manager: 'Gestor B',
-      consultant: 'Fernanda Costa',
-      health: {
-        overall: 'critico',
-        rh: 'atencao',
-        rt: 'critico',
-        ra: 'em-dia',
-        rhSummary: '1 posto aguardando reposição urgente',
-        rtSummary: 'Falha no leitor do acesso principal + barreira perimetral',
-        raSummary: 'Pagamentos e administração em dia',
-        alertBanner: 'AÇÃO URGENTE: LEITOR DE ACESSO PRINCIPAL INOPERANTE',
-        alertActionHint: 'EQUIPE TÉCNICA ACIONADA COM PRIORIDADE MÁXIMA.',
-      },
-      gauges: { improvementPlan: 45, plannedVisits: 70, trainedTeam: 82 },
-      teamMetrics: {
-        replacementsMonth: 4,
-        dismissalsMonth: 3,
-        avgHeadcount: 20,
-        turnoverPercent: 15,
-        trainingsCompleted: 2,
-        participationsRecorded: 16,
-      },
-      fv: { planned: 160, used: 152, balance: 8 },
-      plannedVisitsMonth: 4,
-      completedVisitsMonth: 3,
-      daysSinceLastVisit: 9,
-      overdueActionsCount: 2,
-      criticalOverdueCount: 2,
-      coordinates: { x: 74, y: 31, zone: 'Zona Norte / Logística' },
-    },
-    // Demais contratos para compor os 20 contratos da carteira (14 em dia, 4 em atenção, 2 críticos)
-    ...Array.from({ length: 17 }, (_, idx) => {
-      const n = idx + 4;
-      const divisionsList: DivisionCode[] = [
-        'MOKPAT',
-        'MOKVIP',
-        'MOKLOG',
-        'MOKTEC',
-        'MOKRES',
-        'MOKIMP',
-        'P950',
-        'Treinamento',
-      ];
-      const managersList: ('Gestor A' | 'Gestor B' | 'Gestor C' | 'Gestor D')[] = [
-        'Gestor A',
-        'Gestor B',
-        'Gestor C',
-        'Gestor D',
-      ];
-      // Total wanted across all 20: 14 em-dia, 4 atencao, 2 critico
-      // Already have: 1 em-dia (CT-A), 1 atencao (CT-B), 1 critico (CT-C)
-      // So among remaining 17: 13 em-dia, 3 atencao (n=4,5,6), 1 critico (n=7)
-      const status: 'em-dia' | 'atencao' | 'critico' =
-        n <= 6 ? 'atencao' : n === 7 ? 'critico' : 'em-dia';
-      const visited = n <= 16; // 16 de 20 contratos visitados!
-      return {
-        id: `CT-${n.toString().padStart(2, '0')}`,
-        code: `Contrato ${n.toString().padStart(3, '0')}`,
-        name: `Contrato ${String.fromCharCode(64 + n)}`,
-        unit: `Unidade Operacional ${n.toString().padStart(2, '0')}`,
-        address: `Unidade ${n} - Grande São Paulo`,
-        division: divisionsList[idx % divisionsList.length],
-        manager: managersList[idx % managersList.length],
-        consultant: idx % 2 === 0 ? 'Carlos Mendes' : 'Fernanda Costa',
-        health: {
-          overall: status,
-          rh: status === 'critico' ? ('atencao' as const) : ('em-dia' as const),
-          rt: status,
-          ra: 'em-dia' as const,
-          rhSummary: 'Efetivo regular no período',
-          rtSummary:
-            status === 'em-dia'
-              ? 'Equipamentos operando normalmente'
-              : 'Manutenção preventiva/corretiva em acompanhamento',
-          raSummary: 'Administração regular',
+  // Tabelas reativas alimentadas pela Base de Dados TypeScript (moked.db.ts)
+  readonly contracts = signal<Contract[]>(this.initialDb.tables.contracts);
+  readonly timelineEvents = signal<TimelineEvent[]>(this.initialDb.tables.timelineEvents);
+  readonly occurrences = signal<Occurrence[]>(this.initialDb.tables.occurrences);
+  readonly visits = signal<VisitRecord[]>(this.initialDb.tables.visits);
+  readonly budgets = signal<BudgetProposal[]>(this.initialDb.tables.budgets);
+  readonly trainings = signal<TrainingSession[]>(this.initialDb.tables.trainings);
+  readonly shiftRecords = signal<ShiftRecord[]>(this.initialDb.tables.shiftRecords);
+  readonly thirdPartySLAs = signal<ThirdPartySLA[]>(this.initialDb.tables.thirdPartySLAs);
+  readonly auditLogs = signal<AuditLogEntry[]>(this.initialDb.tables.auditLogs);
+  readonly muralPraises = signal<MuralPraiseRecord[]>(this.initialDb.tables.muralPraises);
+  readonly rankingMembers = signal<RankingMemberRecord[]>(this.initialDb.tables.rankingMembers);
+  readonly ticketMessages = signal<TicketChatMessage[]>(this.initialDb.tables.ticketMessages);
+
+  readonly dbTotalRecords = computed(() =>
+    MokedDatabase.countRecords({
+      contracts: this.contracts(),
+      timelineEvents: this.timelineEvents(),
+      occurrences: this.occurrences(),
+      visits: this.visits(),
+      budgets: this.budgets(),
+      trainings: this.trainings(),
+      shiftRecords: this.shiftRecords(),
+      thirdPartySLAs: this.thirdPartySLAs(),
+      auditLogs: this.auditLogs(),
+      muralPraises: this.muralPraises(),
+      rankingMembers: this.rankingMembers(),
+      ticketMessages: this.ticketMessages(),
+    })
+  );
+
+  constructor() {
+    effect(() => {
+      const updatedAt = new Date().toISOString();
+      MokedDatabase.save({
+        schemaVersion: 4,
+        updatedAt,
+        session: {
+          isLoggedIn: this.isLoggedIn(),
+          activeRole: this.activeRole(),
+          currentUserEmail: this.currentUserEmail(),
+          selectedContractId: this.selectedContractId(),
+          activeClientAccount: this.activeClientAccount(),
+          selectedDivision: this.selectedDivision(),
+          leaderSelectedPost: this.leaderSelectedPost(),
         },
-        gauges: {
-          improvementPlan: status === 'em-dia' ? 90 : 65,
-          plannedVisits: visited ? 85 : 50,
-          trainedTeam: 90,
+        tables: {
+          contracts: this.contracts(),
+          timelineEvents: this.timelineEvents(),
+          occurrences: this.occurrences(),
+          visits: this.visits(),
+          budgets: this.budgets(),
+          trainings: this.trainings(),
+          shiftRecords: this.shiftRecords(),
+          thirdPartySLAs: this.thirdPartySLAs(),
+          auditLogs: this.auditLogs(),
+          muralPraises: this.muralPraises(),
+          rankingMembers: this.rankingMembers(),
+          ticketMessages: this.ticketMessages(),
         },
-        teamMetrics: {
-          replacementsMonth: status === 'em-dia' ? 1 : 2,
-          dismissalsMonth: 1,
-          avgHeadcount: 15,
-          turnoverPercent: 6.7,
-          trainingsCompleted: 1,
-          participationsRecorded: 14,
-        },
-        fv: { planned: 80, used: 72, balance: 8 },
-        plannedVisitsMonth: 2,
-        completedVisitsMonth: visited ? 2 : 0,
-        daysSinceLastVisit: visited ? (idx % 6) + 1 : 14 + (idx % 5),
-        overdueActionsCount: n === 7 ? 1 : n === 4 ? 1 : 0,
-        criticalOverdueCount: n === 7 ? 1 : 0,
-        coordinates: {
-          x: 22 + ((idx * 17) % 62),
-          y: 25 + ((idx * 23) % 55),
-          zone: `Setor ${(idx % 4) + 1}`,
-        },
-      };
-    }),
-  ]);
+      });
+    });
+  }
 
-  // Linha do tempo fiel às páginas 12, 13 e 72
-  readonly timelineEvents = signal<TimelineEvent[]>([
-    {
-      id: 'TL-01',
-      contractId: 'CT-B',
-      date: '05/11',
-      time: '16h30',
-      title: 'Substituição concluída. Reparo validado.',
-      description:
-        'Reparo CFTV 03 validado pelo consultor após substituição de conector e testes de imagem.',
-      category: 'ocorrencia',
-      author: 'Carlos Mendes (Consultor)',
-      authorRole: 'consultor',
-      publishedToClient: true,
-      validatedBy: 'Carlos Mendes',
-      validatedAt: '05/11 · 16h30',
-      photoUrl: '/assets/p13_img_9.png',
-      photoCaption: 'CFTV 03 · Evidência da substituição',
-    },
-    {
-      id: 'TL-02',
-      contractId: 'CT-B',
-      date: '05/11',
-      time: '11h10',
-      title: 'Substituição pendente',
-      description:
-        'Identificada necessidade de troca do conector blindado da Câmera CFTV 03 na portaria principal.',
-      category: 'ocorrencia',
-      author: 'Equipe Técnica',
-      authorRole: 'terceirizados',
-      publishedToClient: true,
-    },
-    {
-      id: 'TL-03',
-      contractId: 'CT-B',
-      date: '05/11',
-      time: '09h20',
-      title: 'Visita técnica registrada',
-      description:
-        'Técnico terceirizado iniciou atendimento na portaria principal para inspeção do CFTV 03.',
-      category: 'visita-tecnica',
-      author: 'Roberto Alves (Técnico)',
-      authorRole: 'terceirizados',
-      publishedToClient: true,
-      photoUrl: '/assets/p13_img_7.png',
-      photoCaption: 'Visita técnica à portaria',
-    },
-    {
-      id: 'TL-04',
-      contractId: 'CT-B',
-      date: '05/11',
-      time: '08h42',
-      title: 'Câmera CFTV 03 fora do ar',
-      description:
-        'Central de Monitoramento identificou perda de sinal na Câmera CFTV 03 (Portaria Principal) e acionou o consultor.',
-      category: 'ocorrencia',
-      author: 'Central de Monitoramento',
-      authorRole: 'monitoramento',
-      publishedToClient: true,
-      photoUrl: '/assets/p13_img_8.png',
-      photoCaption: 'Captura anexada pela Central antes da perda de sinal',
-    },
-    {
-      id: 'TL-05',
-      contractId: 'CT-B',
-      date: '04/11',
-      time: '15h00',
-      title: 'Treinamento de controle de acesso',
-      description:
-        'Treinamento presencial realizado com 9 participantes no posto. Instrutor: Rafael.',
-      category: 'treinamento',
-      author: 'Rafael (Treinamento)',
-      authorRole: 'treinamento',
-      publishedToClient: true,
-      photoUrl: '/assets/p13_img_6.png',
-      photoCaption: 'Treinamento de controle de acesso',
-    },
-    {
-      id: 'TL-06',
-      contractId: 'CT-B',
-      date: '03/11',
-      time: '10h00',
-      title: 'Reunião de alinhamento operacional',
-      description:
-        'Análise do fluxo de horário de pico (17h–20h) e elaboração da proposta de reforço.',
-      category: 'reuniao',
-      author: 'Carlos Mendes (Consultor)',
-      authorRole: 'consultor',
-      publishedToClient: true,
-    },
-    {
-      id: 'TL-07',
-      contractId: 'CT-B',
-      date: '03/11',
-      time: '09h00',
-      title: 'Visita de consultoria',
-      description: 'Revisão do acesso principal, conferência do livro de posto e orientação da equipe.',
-      category: 'visita-consultoria',
-      author: 'Carlos Mendes (Consultor)',
-      authorRole: 'consultor',
-      publishedToClient: true,
-    },
-    {
-      id: 'TL-08',
-      contractId: 'CT-B',
-      date: '02/11',
-      time: '14h00',
-      title: 'Visita de consultoria',
-      description: 'Inspeção de rotina MOKPAT e verificação de rondas perimetrais.',
-      category: 'visita-consultoria',
-      author: 'Carlos Mendes (Consultor)',
-      authorRole: 'consultor',
-      publishedToClient: true,
-    },
-  ]);
-
-  // Ocorrências e Chamados (páginas 4, 5, 27, 37, 52, 70 e 76)
-  readonly occurrences = signal<Occurrence[]>([
-    {
-      id: 'OC-01',
-      code: 'CFTV-03',
-      contractId: 'CT-B',
-      division: 'MOKTEC',
-      title: 'Câmera fora do ar (CFTV 03)',
-      equipment: 'CFTV 03 · Portaria principal',
-      location: 'Portaria principal · Unidade Loja 24',
-      priority: 'alta',
-      origin: 'Central de Monitoramento',
-      description: 'Câmera CFTV 03 fora de operação. Perda de sinal detectada às 08h42.',
-      immediateAction: 'Suporte técnico acionado e ronda presencial reforçada na portaria.',
-      responsible: 'Equipe técnica',
-      deadline: 'Hoje, 17h',
-      status: 'manutencao',
-      isOverdue: false,
-      isCritical: false,
-      publishedToClient: true,
-      clientStatusText:
-        'Câmera fora do ar. A equipe técnica está trabalhando no reparo. Próxima atualização: Hoje, 17h.',
-      leaderStatusText: 'AGUARDANDO REPARO · Acompanha a ocorrência do posto (Contrato B).',
-      consultantNotes:
-        'Relatos da Central (08h42) e do Líder de Posto unificados. Conector substituído em validação.',
-      evidencePhoto: '/assets/p13_img_9.png',
-      downtime: '2h 15min',
-      firstResponseTime: '14 min',
-      createdAt: '05/11 · 08h42',
-    },
-    {
-      id: 'OC-02',
-      code: 'CH-1247',
-      contractId: 'CT-A',
-      division: 'MOKPAT',
-      title: 'Correção de relatório operacional',
-      equipment: 'Painel de Controle',
-      location: 'Recepção Central',
-      priority: 'rotina',
-      origin: 'Visita de campo',
-      description: 'Ajuste de consolidação mensal no relatório de controle de acesso.',
-      immediateAction: 'Revisão solicitada ao analista responsável.',
-      responsible: 'Responsável B',
-      deadline: '08/05',
-      status: 'vencida',
-      isOverdue: true,
-      isCritical: false,
-      publishedToClient: false,
-      clientStatusText: 'Em atualização administrativa interna.',
-      leaderStatusText: 'Sem impacto na rotina do turno.',
-      consultantNotes: 'Atenção necessária — prazo vencido.',
-      downtime: '—',
-      firstResponseTime: '35 min',
-      createdAt: '01/11 · 10h00',
-    },
-    {
-      id: 'OC-03',
-      code: 'CH-1248',
-      contractId: 'CT-B',
-      division: 'MOKPAT',
-      title: 'Falha no leitor do acesso principal',
-      equipment: 'Leitor Biométrico 01',
-      location: 'Acesso Principal',
-      priority: 'alta',
-      origin: 'Visita de campo',
-      description: 'Leitor apresentando intermitência na leitura facial nos horários de pico.',
-      immediateAction: 'Acionada equipe técnica para calibração e limpeza óptica.',
-      responsible: 'Responsável A (Equipe técnica)',
-      deadline: '03/11/2026',
-      status: 'vencida',
-      isOverdue: true,
-      isCritical: true,
-      publishedToClient: true,
-      clientStatusText: 'Manutenção do leitor do acesso principal em tratamento prioritário.',
-      leaderStatusText: 'Contingência ativa na portaria principal.',
-      consultantNotes: 'Origem: Visita de campo. Prazo vencido — escalado para acompanhamento.',
-      evidencePhoto: '/assets/p13_img_7.png',
-      downtime: '4h 10min',
-      firstResponseTime: '18 min',
-      createdAt: '01/11 · 11h30',
-    },
-    {
-      id: 'OC-04',
-      code: 'CH-1249',
-      contractId: 'CT-C',
-      division: 'MOKIMP',
-      title: 'Ajuste de integração e barreira perimetral',
-      equipment: 'Central de Alarme / IVA 04',
-      location: 'Docas Norte',
-      priority: 'grave',
-      origin: 'Central de Monitoramento',
-      description: 'Falha de comunicação na barreira perimetral das docas.',
-      immediateAction: 'Alerta imediato enviado à Alta Gestão e vigilância presencial dedicada.',
-      responsible: 'Responsável C',
-      deadline: '07/05',
-      status: 'vencida',
-      isOverdue: true,
-      isCritical: true,
-      publishedToClient: true,
-      clientStatusText: 'Equipe de engenharia atuando no restabelecimento do sensor perimetral.',
-      leaderStatusText: 'Ronda dedicada a cada 15 min nas Docas Norte.',
-      consultantNotes: 'Ocorrência crítica vencida — acompanhada pela Diretoria.',
-      downtime: '6h 40min',
-      firstResponseTime: '8 min',
-      createdAt: '02/11 · 07h15',
-    },
-    {
-      id: 'OC-05',
-      code: 'CH-1250',
-      contractId: 'CT-B',
-      division: 'MOKPAT',
-      title: 'Tentativa de entrada sem autorização',
-      equipment: 'Catraca Portaria Principal',
-      location: 'Posto Exemplo · Portaria Principal',
-      priority: 'alta',
-      origin: 'Líder de Posto',
-      description: 'Tentativa de entrada sem autorização prévia registrada às 14h20.',
-      immediateAction: 'Acesso bloqueado imediatamente na portaria e consultor avisado.',
-      responsible: 'Carlos Mendes (Consultor)',
-      deadline: 'Hoje, 18h',
-      status: 'aguardando-validacao',
-      isOverdue: false,
-      isCritical: false,
-      publishedToClient: false,
-      clientStatusText: 'Registro de bloqueio preventivo na portaria.',
-      leaderStatusText: 'Acesso bloqueado e enviado ao consultor.',
-      consultantNotes: 'Aguardando validação final do consultor para publicação no histórico.',
-      evidencePhoto: '/assets/p13_img_8.png',
-      downtime: '0 min',
-      firstResponseTime: '2 min',
-      createdAt: '01/11 · 14h20',
-    },
-  ]);
-
-  // Visitas de campo (Consultor, Técnico e Supervisor — páginas 26, 29, 32, 45, 46)
-  readonly visits = signal<VisitRecord[]>([
-    {
-      id: 'VIS-01',
-      contractId: 'CT-B',
-      division: 'MOKPAT',
-      visitorName: 'Carlos Mendes',
-      visitorRole: 'consultor',
-      date: '03/11/2026',
-      entryTime: '09:00',
-      exitTime: '09:42',
-      durationMinutes: 42,
-      status: 'concluida',
-      summary: 'Revisão do acesso principal e orientação da equipe de portaria.',
-      improvementRegistered: 'Reposicionamento do cone de triagem de veículos no horário de pico.',
-      checklist: [
-        { label: 'Efetivo completo e uniformizado no posto', checked: true },
-        { label: 'Livro de ocorrência e passagem de turno conferidos', checked: true },
-        { label: 'Equipamentos de comunicação (HT) testados', checked: true },
-        { label: 'Procedimento de controle de acesso auditado', checked: true },
-      ],
-      divisionFields: {
-        revisaoAcesso: 'Revisão do acesso e orientação da equipe concluídas',
-        efetivoPosto: 'Efetivo completo (4/4)',
-      },
-      photoUrl: '/assets/p13_img_7.png',
-      validatedByConsultant: true,
-      publishedToClient: true,
-    },
-    {
-      id: 'VIS-02',
-      contractId: 'CT-B',
-      division: 'MOKTEC',
-      visitorName: 'Roberto Alves (Técnico Autorizado)',
-      visitorRole: 'tecnico',
-      date: '05/11/2026',
-      entryTime: '09:12',
-      exitTime: '10:25',
-      durationMinutes: 73,
-      status: 'concluida',
-      summary: 'Manutenção de CFTV na Portaria Principal — Conector substituído.',
-      improvementRegistered: 'Isolamento térmico reforçado na caixa de passagem da câmera CFTV 03.',
-      checklist: [
-        { label: 'Equipamento e falha identificados (CFTV 03)', checked: true },
-        { label: 'Substituição de conector realizada', checked: true },
-        { label: 'Teste de imagem e gravação na Central OK', checked: true },
-        { label: 'Foto da evidência anexada', checked: true },
-      ],
-      divisionFields: {
-        equipamentoAvaliado: 'Câmera CFTV 03 - Portaria Principal',
-        statusRestabelecimento: 'Conector substituído · Sinal restabelecido',
-      },
-      photoUrl: '/assets/p13_img_9.png',
-      linkedOccurrenceId: 'OC-01',
-      validatedByConsultant: true,
-      publishedToClient: true,
-    },
-    {
-      id: 'VIS-03',
-      contractId: 'CT-B',
-      division: 'MOKPAT',
-      visitorName: 'Marcos Rocha (Supervisor Segurança)',
-      visitorRole: 'supervisor',
-      date: '04/11/2026',
-      entryTime: '21:10',
-      exitTime: '21:50',
-      durationMinutes: 40,
-      status: 'concluida',
-      summary: 'Conferência noturna de equipe, rondas eletrônicas e livro de posto.',
-      improvementRegistered: 'Ajuste no intervalo da ronda perimetral noturna.',
-      checklist: [
-        { label: 'Equipe noturna completa no posto', checked: true },
-        { label: 'Rondas eletrônicas conferidas', checked: true },
-        { label: 'Livro de posto assinado e sem pendências críticas', checked: true },
-      ],
-      divisionFields: {
-        revisaoAcesso: 'Portaria noturna em conformidade',
-      },
-      photoUrl: '/assets/p13_img_7.png',
-      validatedByConsultant: true,
-      publishedToClient: false,
-    },
-  ]);
-
-  // Orçamentos pendentes por contrato (Clientes A, B e C — páginas 10, 14, 17, 78)
-  readonly budgets = signal<BudgetProposal[]>([
-    {
-      id: 'ORC-01',
-      contractId: 'CT-B',
-      title: 'Reforço de equipe',
-      monthlyValue: 2000,
-      justification:
-        'Cobrir o acesso principal entre 17h e 20h. A operação atual mantém a lacuna registrada no fluxo de saída.',
-      impact: 'Redução de 75% no tempo de fila da portaria principal e eliminação de vulnerabilidade no pico.',
-      status: 'em-aprovacao-cliente',
-      comments: [
-        {
-          author: 'Carlos Mendes',
-          role: 'Consultor Moked',
-          text: 'Proposta liberada após análise do fluxo entre 17h e 20h na portaria principal.',
-          date: '03/11 · 11h20',
-        },
-      ],
-      history: [
-        { step: 'Identificação da lacuna em visita técnica', date: '02/11 · 14h30', actor: 'Carlos Mendes' },
-        { step: 'Envio da proposta à Gestão Moked', date: '03/11 · 09h40', actor: 'Carlos Mendes' },
-        { step: 'Liberação da proposta para decisão do Cliente', date: '03/11 · 11h15', actor: 'Diretoria / Consultor' },
-      ],
-    },
-    {
-      id: 'ORC-A',
-      contractId: 'CT-A',
-      title: 'Totem de Reconhecimento Facial VIP',
-      monthlyValue: 1450,
-      justification:
-        'Agilizar o credenciamento de visitantes executivos na recepção da Sede Paulista no horário comercial.',
-      impact: 'Liberação de acesso em menos de 3 segundos e registro fotográfico automático na Linha do Tempo.',
-      status: 'em-aprovacao-cliente',
-      comments: [
-        {
-          author: 'Carlos Mendes',
-          role: 'Consultor Moked',
-          text: 'Proposta de modernização tecnológica para o hall principal.',
-          date: '04/11 · 15h00',
-        },
-      ],
-      history: [
-        { step: 'Levantamento técnico na recepção', date: '03/11 · 10h00', actor: 'Carlos Mendes' },
-        { step: 'Proposta liberada para aprovação do Cliente A', date: '04/11 · 15h00', actor: 'Consultor Moked' },
-      ],
-    },
-    {
-      id: 'ORC-C',
-      contractId: 'CT-C',
-      title: 'Reforço de Ronda Perimetral Noturna',
-      monthlyValue: 3500,
-      justification:
-        'Ampliação da cobertura motorizada no perímetro norte e docas externas entre 22h e 05h.',
-      impact: 'Cobertura integral do perímetro logístico e resposta imediata a alertas de barreira.',
-      status: 'em-aprovacao-cliente',
-      comments: [
-        {
-          author: 'Fernanda Costa',
-          role: 'Consultora Moked',
-          text: 'Recomendação prioritária após auditoria noturna no Centro Logístico.',
-          date: '04/11 · 19h10',
-        },
-      ],
-      history: [
-        { step: 'Inspeção perimetral noturna MOKIMP', date: '03/11 · 22h30', actor: 'Fernanda Costa' },
-        { step: 'Proposta enviada para aprovação urgente do Cliente C', date: '04/11 · 19h10', actor: 'Diretoria / Consultor' },
-      ],
-    },
-  ]);
-
-  // Turmas de Treinamento (páginas 10, 15, 19, 54–56, 66, 69)
-  readonly trainings = signal<TrainingSession[]>([
-    {
-      id: 'TRN-01',
-      contractId: 'CT-B',
-      title: 'Controle de acesso',
-      date: '28/10/2026',
-      instructor: 'Rafael (Equipe de Treinamento)',
-      content: 'Identificação de visitantes, triagem de prestadores, uso do Olam e resposta a acesso indevido.',
-      photoUrl: '/assets/treinamento-controle-acesso.png',
-      publishedToClient: true,
-      participants: [
-        { name: 'Ana Ribeiro', role: 'Portaria Diurna', present: true, pointsEarned: 10, makeupStatus: 'em-dia' },
-        { name: 'Bruno Lima', role: 'Portaria Noturna', present: false, pointsEarned: 0, makeupStatus: 'pendente' },
-        { name: 'Carla Santos', role: 'Controle de Acesso', present: true, pointsEarned: 10, makeupStatus: 'em-dia' },
-        { name: 'Diego Martins', role: 'Portaria Diurna', present: true, pointsEarned: 10, makeupStatus: 'em-dia' },
-        { name: 'Eduarda Alves', role: 'Recepção Técnica', present: true, pointsEarned: 10, makeupStatus: 'em-dia' },
-        { name: 'Fábio Nogueira', role: 'Ronda Patrimonial', present: true, pointsEarned: 10, makeupStatus: 'em-dia' },
-        { name: 'Gustavo Rocha', role: 'Portaria Noturna', present: true, pointsEarned: 10, makeupStatus: 'em-dia' },
-        { name: 'Helena Castro', role: 'Controle de Acesso', present: true, pointsEarned: 10, makeupStatus: 'em-dia' },
-        { name: 'Igor Santana', role: 'Reserva Técnica', present: true, pointsEarned: 10, makeupStatus: 'em-dia' },
-      ],
-    },
-    {
-      id: 'TRN-A',
-      contractId: 'CT-A',
-      title: 'Protocolo Executivo e Atendimento Corporativo VIP',
-      date: '02/11/2026',
-      instructor: 'Rafael (Equipe de Treinamento)',
-      content: 'Recepção bilíngue, credenciamento rápido, escolta interna e controle de acesso executivo.',
-      photoUrl: '/assets/treinamento-controle-acesso.png',
-      publishedToClient: true,
-      participants: Array.from({ length: 12 }, (_, i) => ({
-        name: `Colaborador Sede ${i + 1}`,
-        role: 'Segurança Corporativa',
-        present: true,
-        pointsEarned: 10,
-        makeupStatus: 'em-dia' as const,
-      })),
-    },
-    {
-      id: 'TRN-C',
-      contractId: 'CT-C',
-      title: 'Inspeção de Docas, Lacres e Pátio Logístico',
-      date: '30/10/2026',
-      instructor: 'Rafael (Equipe de Treinamento)',
-      content: 'Conferência de nota fiscal, auditoria de lacres, controle de motoristas e bloqueio perimetral.',
-      photoUrl: '/assets/treinamento-controle-acesso.png',
-      publishedToClient: true,
-      participants: Array.from({ length: 16 }, (_, i) => ({
-        name: `Vigilante Logístico ${i + 1}`,
-        role: 'Operação de Docas',
-        present: i !== 3,
-        pointsEarned: i !== 3 ? 10 : 0,
-        makeupStatus: i !== 3 ? ('em-dia' as const) : ('pendente' as const),
-      })),
-    },
-  ]);
-
-  // Registros de Turno do Líder de Posto (páginas 34–43)
-  readonly shiftRecords = signal<ShiftRecord[]>([
-    {
-      id: 'SHF-01',
-      contractId: 'CT-B',
-      postName: 'Posto Exemplo · Portaria Principal',
-      leaderName: 'Sérgio Oliveira (Líder de Posto)',
-      date: '01/11/2026',
-      time: '14:20',
-      shift: 'Diurno (06h às 18h)',
-      type: 'ocorrencia',
-      description: 'Tentativa de entrada sem autorização na portaria principal.',
-      immediateAction: 'Acesso bloqueado e consultor avisado imediatamente.',
-      photoUrl: '/assets/p13_img_8.png',
-      status: 'registrado',
-    },
-    {
-      id: 'SHF-02',
-      contractId: 'CT-B',
-      postName: 'Posto Exemplo · Portaria Principal',
-      leaderName: 'Sérgio Oliveira (Líder de Posto)',
-      date: '04/11/2026',
-      time: '18:00',
-      shift: 'Diurno (06h às 18h)',
-      type: 'sem-alteracao',
-      description: 'Turno encerrado sem alterações. Posto, efetivo e equipamentos conferidos.',
-      status: 'validado',
-    },
-  ]);
-
-  // SLA dos Terceirizados e Multas (páginas 48–50)
-  readonly thirdPartySLAs = signal<ThirdPartySLA[]>([
-    {
-      id: 'SLA-01',
-      companyName: 'TechSec Sistemas CFTV Ltda.',
-      roleType: '04A Técnico Terceirizado',
-      serviceType: 'Manutenção de CFTV (CFTV 03)',
-      contractId: 'CT-B',
-      monthlyScorePercent: 89,
-      callOpenedAt: '09h00',
-      scheduledDeadline: '10h00',
-      actualEndTime: '10h25',
-      delayMinutes: 25,
-      checklistCompleted: true,
-      photoAttached: true,
-      fineAmount: 150,
-      fineStatus: 'publicada-cliente',
-      reason: 'Atraso de 25 min na conclusão do chamado técnico (prazo 10h00 · fim 10h25).',
-    },
-    {
-      id: 'SLA-02',
-      companyName: 'Vanguarda Vigilância Patrimonial',
-      roleType: '04B Supervisor Segurança',
-      serviceType: 'Cobertura de Postos e Rondas',
-      contractId: 'CT-A',
-      monthlyScorePercent: 97,
-      callOpenedAt: '06h00',
-      scheduledDeadline: '06h00',
-      actualEndTime: '05h55',
-      delayMinutes: 0,
-      checklistCompleted: true,
-      photoAttached: true,
-      fineAmount: 0,
-      fineStatus: 'nenhuma',
-      reason: '100% das entregas previstas concluídas no prazo com checklist e foto.',
-    },
-    {
-      id: 'SLA-03',
-      companyName: 'Alpha Monitoramento & Acesso',
-      roleType: '04A Técnico Terceirizado',
-      serviceType: 'Manutenção de Catracas e Leitores',
-      contractId: 'CT-C',
-      monthlyScorePercent: 81,
-      callOpenedAt: '08h00',
-      scheduledDeadline: '12h00',
-      actualEndTime: '13h40',
-      delayMinutes: 100,
-      checklistCompleted: true,
-      photoAttached: false,
-      fineAmount: 350,
-      fineStatus: 'em-analise',
-      reason: 'Desempenho abaixo de 85% — plano de correção solicitado e multa em análise pela Gestão.',
-    },
-  ]);
-
-  // Trilha de Auditoria (páginas 82–84)
-  readonly auditLogs = signal<AuditLogEntry[]>([
-    {
-      id: 'AUD-01',
-      timestamp: '05/11/2026 16:30:12',
-      contractId: 'CT-B',
-      actor: 'Carlos Mendes',
-      actorRole: '02 | Consultor',
-      action: 'PUBLICOU_CLIENTE',
-      entityType: 'Ocorrência / Reparo',
-      entityId: 'OC-01 (CFTV 03)',
-      details: 'Validou reparo da Câmera CFTV 03 e publicou status e evidência fotográfica para o Cliente.',
-    },
-    {
-      id: 'AUD-02',
-      timestamp: '05/11/2026 11:15:00',
-      contractId: 'CT-B',
-      actor: 'Eric (Alta Gestão)',
-      actorRole: '07 | Alta Gestão',
-      action: 'APROVOU',
-      entityType: 'SLA / Multa Contratual',
-      entityId: 'SLA-01',
-      details: 'Aprovou multa contratual de R$ 150,00 por atraso de 25 min na manutenção de CFTV.',
-    },
-    {
-      id: 'AUD-03',
-      timestamp: '05/11/2026 10:25:04',
-      contractId: 'CT-B',
-      actor: 'Roberto Alves',
-      actorRole: '04A | Técnico Terceirizado',
-      action: 'ALTEROU',
-      entityType: 'Visita Técnica',
-      entityId: 'VIS-02',
-      details: 'Registrou saída às 10h25 com checklist completo e foto do conector substituído.',
-    },
-    {
-      id: 'AUD-04',
-      timestamp: '05/11/2026 08:42:19',
-      contractId: 'CT-B',
-      actor: 'Operador Central 04',
-      actorRole: '05 | Central de Monitoramento',
-      action: 'CRIOU',
-      entityType: 'Ocorrência Técnica',
-      entityId: 'OC-01 (CFTV 03)',
-      details: 'Detectou câmera fora do ar na Portaria Principal, anexou captura e acionou o consultor.',
-    },
-  ]);
+  resetDatabaseToSeed(): void {
+    const fresh = MokedDatabase.reset();
+    this.contracts.set(fresh.tables.contracts);
+    this.timelineEvents.set(fresh.tables.timelineEvents);
+    this.occurrences.set(fresh.tables.occurrences);
+    this.visits.set(fresh.tables.visits);
+    this.budgets.set(fresh.tables.budgets);
+    this.trainings.set(fresh.tables.trainings);
+    this.shiftRecords.set(fresh.tables.shiftRecords);
+    this.thirdPartySLAs.set(fresh.tables.thirdPartySLAs);
+    this.auditLogs.set(fresh.tables.auditLogs);
+    this.muralPraises.set(fresh.tables.muralPraises);
+    this.rankingMembers.set(fresh.tables.rankingMembers);
+    this.ticketMessages.set(fresh.tables.ticketMessages);
+    this.dbLastSyncedAt.set(fresh.updatedAt);
+    this.showToast('Base TypeScript restaurada para o estado inicial Moked.');
+  }
 
   // Computed helpers
   readonly selectedContract = computed(
@@ -2090,6 +868,186 @@ export class OlamStateService {
       `Registrou conclusão da reposição de ${participantName} (+10 pontos no cadastro).`
     );
     this.showToast(`Reposição de ${participantName} concluída! Cobertura da turma atualizada para 100%.`);
+  }
+
+  // MOKED RESOLVE: Registro guiado em 4 etapas (Ideia, Ocorrência/Crítica ou Elogio)
+  registerResolveTicket(payload: {
+    kind: 'ideia' | 'critica' | 'elogio';
+    contractId: string;
+    division: DivisionCode;
+    location: string;
+    title: string;
+    description: string;
+    priority: 'rotina' | 'alta' | 'grave';
+    anonymous: boolean;
+    reporterName?: string;
+    recipientName?: string;
+  }): string {
+    const nowTime = new Date().toLocaleTimeString('pt-BR', {
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+    const seq = 100 + this.occurrences().length + this.timelineEvents().length + 1;
+    const protocol = `MKD-${seq}`;
+    const contract = this.contracts().find((c) => c.id === payload.contractId) ?? this.selectedContract();
+    const actorName = payload.anonymous
+      ? 'Colaborador / Cliente Anônimo'
+      : payload.reporterName?.trim() || `${this.currentUserEmail()}`;
+    const divisionMeta = this.divisions.find((d) => d.code === payload.division);
+
+    const kindLabel =
+      payload.kind === 'ideia'
+        ? 'Ideia / Melhoria'
+        : payload.kind === 'elogio'
+          ? 'Elogio à Equipe'
+          : 'Ocorrência / Crítica';
+
+    const newOcc: Occurrence = {
+      id: `OC-${String(this.occurrences().length + 1).padStart(2, '0')}`,
+      code: protocol,
+      contractId: contract.id,
+      division: payload.division,
+      title: payload.title.trim(),
+      equipment: `${kindLabel} · ${divisionMeta?.name ?? payload.division}`,
+      location: payload.location.trim() || contract.unit,
+      priority: payload.priority,
+      origin: 'Visita de campo',
+      description: payload.description.trim(),
+      immediateAction: `Direcionado automaticamente para a divisão ${payload.division} (${contract.consultant}).`,
+      responsible: contract.consultant || 'Consultor Moked',
+      deadline: payload.priority === 'grave' ? 'Imediato (2h)' : '24h úteis',
+      status: payload.kind === 'elogio' ? 'validada' : 'aberta',
+      isOverdue: false,
+      isCritical: payload.priority === 'grave',
+      publishedToClient: true,
+      clientStatusText:
+        payload.kind === 'elogio'
+          ? `Reconhecimento publicado no Mural Moked (${protocol}).`
+          : `Protocolo ${protocol} recebido · Em coordenação pela equipe ${payload.division}.`,
+      leaderStatusText: `Registrado no Moked Resolve (${protocol}).`,
+      consultantNotes: `Direcionamento automático Moked Resolve -> ${payload.division} às ${nowTime}.`,
+      firstResponseTime: 'Em atendimento automático',
+      createdAt: `Hoje · ${nowTime}`,
+    };
+    this.occurrences.update((list) => [newOcc, ...list]);
+
+    this.ticketMessages.update((list) => [
+      {
+        id: `MSG-${Date.now()}`,
+        occurrenceCode: protocol,
+        author: actorName,
+        roleLabel: payload.anonymous ? 'Registro Anônimo' : 'Solicitante',
+        body: payload.description.trim(),
+        timestamp: nowTime,
+        isInternal: false,
+      },
+      {
+        id: `MSG-${Date.now() + 1}`,
+        occurrenceCode: protocol,
+        author: 'Roteamento Moked 360',
+        roleLabel: 'Direcionamento Automático',
+        body: `Protocolo ${protocol} direcionado para ${payload.division} (${contract.name}) sob responsabilidade de ${contract.consultant}.`,
+        timestamp: nowTime,
+        isInternal: false,
+      },
+      ...list,
+    ]);
+
+    this.addTimelineEvent({
+      contractId: contract.id,
+      date: 'Hoje',
+      time: nowTime,
+      title: `${kindLabel} (${protocol}): ${payload.title.trim()}`,
+      description: payload.description.trim(),
+      category: payload.kind === 'elogio' ? 'reuniao' : 'ocorrencia',
+      author: actorName,
+      authorRole: this.activeRole(),
+      publishedToClient: true,
+    });
+
+    if (payload.kind === 'elogio') {
+      const praise: MuralPraiseRecord = {
+        id: `MUR-${String(this.muralPraises().length + 1).padStart(2, '0')}`,
+        author: actorName,
+        authorRole: payload.anonymous ? 'Canal Anônimo Moked' : 'Moked Resolve',
+        recipient: payload.recipientName?.trim() || `Equipe ${payload.division}`,
+        contractId: contract.id,
+        division: payload.division,
+        title: payload.title.trim(),
+        message: payload.description.trim(),
+        date: `Hoje · ${nowTime}`,
+        likes: 1,
+        likedByMe: true,
+        tone: 'emerald',
+      };
+      this.muralPraises.update((list) => [praise, ...list]);
+    }
+
+    this.addAuditLog(
+      contract.id,
+      actorName,
+      'Moked Resolve',
+      'CRIOU',
+      kindLabel,
+      protocol,
+      `${payload.title.trim()} -> ${payload.division}`
+    );
+
+    this.showToast(`Protocolo ${protocol} gerado e salvo na Base TypeScript!`);
+    return protocol;
+  }
+
+  addTicketChatMessage(occurrenceCode: string, author: string, roleLabel: string, body: string): void {
+    const clean = body.trim();
+    if (!clean) return;
+    const nowTime = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    this.ticketMessages.update((list) => [
+      ...list,
+      {
+        id: `MSG-${Date.now()}`,
+        occurrenceCode,
+        author: author.trim() || 'Consultor Moked',
+        roleLabel,
+        body: clean,
+        timestamp: nowTime,
+        isInternal: false,
+      },
+    ]);
+    this.showToast(`Resposta enviada no protocolo ${occurrenceCode}.`);
+  }
+
+  advanceTicketStatus(occurrenceCode: string, nextStatus: Occurrence['status']): void {
+    this.occurrences.update((list) =>
+      list.map((occ) =>
+        occ.code === occurrenceCode || occ.id === occurrenceCode
+          ? {
+              ...occ,
+              status: nextStatus,
+              clientStatusText:
+                nextStatus === 'validada'
+                  ? `Protocolo ${occ.code} concluído e validado pela coordenação Moked.`
+                  : nextStatus === 'aguardando-validacao'
+                    ? `Protocolo ${occ.code} em tratamento técnico pela divisão ${occ.division}.`
+                    : occ.clientStatusText,
+            }
+          : occ
+      )
+    );
+    this.showToast(`Status do protocolo ${occurrenceCode} atualizado!`);
+  }
+
+  toggleMuralLike(praiseId: string): void {
+    this.muralPraises.update((list) =>
+      list.map((p) => {
+        if (p.id !== praiseId) return p;
+        const likedByMe = !p.likedByMe;
+        return {
+          ...p,
+          likedByMe,
+          likes: likedByMe ? p.likes + 1 : Math.max(0, p.likes - 1),
+        };
+      })
+    );
   }
 
   private addTimelineEvent(event: Omit<TimelineEvent, 'id'>): void {

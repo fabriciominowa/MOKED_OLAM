@@ -33,9 +33,14 @@ import { OlamStateService } from '../../services/olam-state.service';
           </svg>
         </button>
 
-        <div class="topbar-moked-brand">
+        <button
+          type="button"
+          class="topbar-moked-brand cursor-pointer bg-transparent border-0"
+          title="Ir para Moked Resolve (Início)"
+          (click)="goResolve()"
+        >
           <strong>MOK<span class="red">ED</span></strong>
-        </div>
+        </button>
 
         @if (state.activeRole() === 'cliente') {
           <!-- QUANDO LOGADO COMO CLIENTE: CONTRATO BLOQUEADO AO SEU ESCOPO + SELETOR DE TESTE A/B/C -->
@@ -121,6 +126,10 @@ export class TopbarComponent {
     if (status === 'em-dia') return 'Em dia';
     if (status === 'atencao') return 'Atenção';
     return 'Crítico';
+  }
+
+  goResolve(): void {
+    this.router.navigate(['/resolve']);
   }
 
   logout(): void {

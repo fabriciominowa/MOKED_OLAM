@@ -3,15 +3,45 @@ import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { DivisionCode } from '../../models/olam.models';
 import { OlamStateService } from '../../services/olam-state.service';
+import { Moked3dCanvasComponent } from '../../shared/components/moked-3d-canvas.component';
 
 @Component({
   selector: 'app-alta-gestao-bi',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, Moked3dCanvasComponent],
   template: `
     <!-- MÓDULO 1: VISÃO EXECUTIVA -->
     @if (state.managementActiveTab() === 'visao-executiva') {
       <div class="exec-dashboard">
+        <section class="exec-3d-banner">
+          <div class="space-y-3">
+            <div class="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-[11px] font-bold uppercase tracking-widest text-rose-300 backdrop-blur-md">
+              <span class="fx-radar-dot"></span>
+              <span>Telemetria 3D em Tempo Real · Moked Resolve 360</span>
+            </div>
+            <h2 class="font-display text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
+              Comando Executivo · 20 Contratos Monitorados
+            </h2>
+            <p class="text-sm text-slate-300 leading-relaxed max-w-xl">
+              Visualização espacial integrada à Base TypeScript: acompanhe cobertura de visitas, alertas críticos e fluxos do Moked Resolve.
+            </p>
+            <div class="flex flex-wrap gap-2 pt-1 font-mono text-xs">
+              <span class="rounded-lg bg-emerald-500/20 border border-emerald-400/30 px-2.5 py-1 text-emerald-200 font-semibold">
+                ● {{ state.portfolioSummary().emDia }} Em Dia
+              </span>
+              <span class="rounded-lg bg-amber-500/20 border border-amber-400/30 px-2.5 py-1 text-amber-200 font-semibold">
+                ▲ {{ state.portfolioSummary().atencao }} Atenção
+              </span>
+              <span class="rounded-lg bg-rose-500/20 border border-rose-400/30 px-2.5 py-1 text-rose-200 font-semibold">
+                ■ {{ state.portfolioSummary().criticos }} Críticos
+              </span>
+            </div>
+          </div>
+          <div class="e3d-stage" aria-hidden="true">
+            <app-moked-3d-canvas mode="network" status="em-dia" />
+          </div>
+        </section>
+
         <div class="exec-filters-bar">
           <h2>Visão Executiva</h2>
           <div class="exec-selects">
