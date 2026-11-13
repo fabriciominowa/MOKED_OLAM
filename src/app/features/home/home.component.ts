@@ -614,7 +614,7 @@ interface ClientCaseView {
                 </a>
               </div>
 
-              <div class="space-y-4">
+              <div class="flex-1 flex flex-col justify-between gap-4">
                 @for (praise of featuredPraises(); track praise.id) {
                   <article class="mk-card-3d-creative p-5 shadow-lg">
                     <div class="flex items-center justify-between gap-2 text-xs">
@@ -654,21 +654,21 @@ interface ClientCaseView {
 
             <!-- Ranking & Conquistas -->
             <div class="lg:col-span-5 flex flex-col">
+              <div class="flex flex-wrap items-end justify-between gap-4 mb-5">
+                <div>
+                  <span class="mk-section-eyebrow text-amber-400">Ranking &amp; Conquistas</span>
+                  <h2 class="font-display text-2xl md:text-3xl font-extrabold text-white mt-2">
+                    Trilha de Engajamento Moked
+                  </h2>
+                </div>
+                <a routerLink="/ranking" class="text-xs font-bold text-rose-400 hover:underline whitespace-nowrap">
+                  Ver Ranking →
+                </a>
+              </div>
+
               <div class="mk-card-3d-creative p-6 shadow-xl flex-1 flex flex-col justify-between">
                 <div>
-                  <div class="flex items-center justify-between gap-2">
-                    <span class="text-xs font-extrabold uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
-                      <span class="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse"></span>
-                      <span>Ranking &amp; Conquistas</span>
-                    </span>
-                    <a routerLink="/ranking" class="text-xs font-bold text-rose-400 hover:underline whitespace-nowrap">
-                      Ver Ranking →
-                    </a>
-                  </div>
-                  <h3 class="font-display text-2xl font-extrabold text-white mt-2">
-                    Trilha de Engajamento Moked
-                  </h3>
-                  <p class="text-xs text-slate-300 mt-1 leading-relaxed">
+                  <p class="text-xs text-slate-300 leading-relaxed">
                     +10 pts por registro identificado, +50 pts por ideia implementada e bônus por sequência de entregas.
                   </p>
 
@@ -681,7 +681,7 @@ interface ClientCaseView {
                   </div>
                 </div>
 
-                <div class="space-y-3 mt-5 flex-1 flex flex-col justify-between">
+                <div class="flex-1 flex flex-col justify-between gap-3 mt-5">
                   @for (member of topRankingMembers(); track member.id; let idx = $index) {
                     <div class="mk-card-3d-creative px-4 py-3 flex items-center justify-between gap-3 transition-colors">
                       <div class="flex items-center gap-3 min-w-0">
